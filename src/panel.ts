@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execFile } from 'child_process';
 import MarkdownIt from 'markdown-it';
 import { Transformer } from 'markmap-lib';
 import { FEATURES_DIR, findVideo, readText, resolvePlatform, scenarioFileName } from './features';
@@ -99,6 +100,12 @@ export class FeaturePanel {
 
   private async onMessage(msg: { type: string; href?: string }) {
     if (msg.type === 'ready') return this.post();
+    if (msg.type === 'openVideo' && this.currentId) {
+      const node = this.tree.findById(this.currentId);
+      const video = node && findVideo(node.dir);
+      if (video) openWithSystemPlayer(video);
+      return;
+    }
     if (msg.type === 'record' && this.currentId) {
       vscode.commands.executeCommand('hlens.record', this.currentId);
       return;
@@ -169,6 +176,11 @@ export function renderShell({ cspSource, nonce, scriptUri }: { cspSource: string
   .intent h2:first-of-type { margin-top: 0; }
   .intent code { background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; }
   video { width: 100%; max-width: 960px; border-radius: 6px; background: #000; }
+  /* Webviews usually block the browser Fullscreen API, so "full screen" fills the panel instead. */
+  #video.fs { position: fixed; inset: 0; z-index: 1000; background: #000; display: flex; align-items: center; justify-content: center; }
+  #video.fs video { width: auto; max-width: 100%; height: 100%; max-height: 100%; border-radius: 0; object-fit: contain; }
+  #fs-close { display: none; position: fixed; top: 12px; right: 12px; z-index: 1001; opacity: .85; }
+  #fs-close.on { display: block; }
   .hint { align-self: center; color: var(--vscode-descriptionForeground); font-size: 12px; }
   .toolbar button:disabled { opacity: .5; cursor: default; }
   .empty { color: var(--vscode-descriptionForeground); padding: 24px 0; line-height: 1.6; }
@@ -191,11 +203,19 @@ export function renderShell({ cspSource, nonce, scriptUri }: { cspSource: string
   <svg id="mindmap"></svg>
   <div id="impl-empty" class="empty" style="display:none;padding:24px"></div>
 </section>
+<button id="fs-close" title="Exit full screen (Esc)">✕ Close</button>
 <section id="tab-video">
-  <div class="toolbar" style="padding:0 0 12px"><button id="record">Record video</button><span id="record-hint" class="hint"></span></div>
+  <div class="toolbar" style="padding:0 0 12px"><button id="record">Record video</button><button id="fullscreen" disabled>Full screen</button><button id="external" disabled>Open in player</button><span id="record-hint" class="hint"></span></div>
   <div id="video"></div>
 </section>
 <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
+}
+
+/** Opens a file with the operating system's default application. */
+function openWithSystemPlayer(file: string) {
+  if (process.platform === 'darwin') execFile('open', [file]);
+  else if (process.platform === 'win32') execFile('cmd', ['/c', 'start', '', file]);
+  else execFile('xdg-open', [file]);
 }

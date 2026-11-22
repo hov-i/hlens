@@ -36,6 +36,30 @@ function selectTab(tab: string) {
 document.querySelectorAll<HTMLButtonElement>('nav button').forEach((b) =>
   b.addEventListener('click', () => selectTab(b.dataset.tab!)),
 );
+const videoBox = $('video');
+const fsClose = $<HTMLButtonElement>('fs-close');
+function setFullscreen(on: boolean) {
+  videoBox.classList.toggle('fs', on);
+  fsClose.classList.toggle('on', on);
+}
+$('fullscreen').addEventListener('click', () => setFullscreen(!videoBox.classList.contains('fs')));
+fsClose.addEventListener('click', () => setFullscreen(false));
+$('external').addEventListener('click', () => vscode.postMessage({ type: 'openVideo' }));
+videoBox.addEventListener('dblclick', (e) => {
+  if ((e.target as HTMLElement).tagName === 'VIDEO') setFullscreen(!videoBox.classList.contains('fs'));
+});
+// Capture phase: the <video> element's own key handling would otherwise swallow Escape.
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.key === 'Escape' && videoBox.classList.contains('fs')) {
+      e.preventDefault();
+      setFullscreen(false);
+    }
+  },
+  true,
+);
+
 $('record').addEventListener('click', () => vscode.postMessage({ type: 'record' }));
 $('fit').addEventListener('click', () => markmap?.fit());
 $('expand').addEventListener('click', () => {
@@ -103,8 +127,12 @@ function render(data: PanelData) {
     ? `${PLATFORM_LABEL[data.platform] ?? data.platform} · ${data.scenarioFile}`
     : `${wanted} does not exist yet. Click to have Claude Code create it (${PLATFORM_LABEL[data.platform] ?? data.platform})`;
 
+  $<HTMLButtonElement>('fullscreen').disabled = !data.videoUri;
+  $<HTMLButtonElement>('external').disabled = !data.videoUri;
+  if (!data.videoUri) setFullscreen(false);
+  // controlslist hides the built-in fullscreen button, which does nothing inside a webview.
   $('video').innerHTML = data.videoUri
-    ? `<video controls preload="metadata" src="${data.videoUri}"></video>`
+    ? `<video controls controlslist="nofullscreen" preload="metadata" src="${data.videoUri}"></video>`
     : `<p class="empty">No video yet.<br>Click <b>Record video</b> above to run the scenario and save the recording to <code>.features/${data.id}/.out/</code>.</p>`;
 }
 

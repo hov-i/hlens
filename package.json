@@ -2,7 +2,7 @@
   "name": "hlens",
   "displayName": "HLens",
   "description": "Review AI-built features by intent, implementation mind map and a recorded demo video — right from the VS Code sidebar.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "hovi",
   "license": "MIT",
   "engines": {
