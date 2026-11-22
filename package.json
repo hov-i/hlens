@@ -1,0 +1,136 @@
+{
+  "name": "hlens",
+  "displayName": "HLens",
+  "description": "Review AI-built features by intent, implementation mind map and a recorded demo video — right from the VS Code sidebar.",
+  "version": "0.1.0",
+  "publisher": "hovi",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "hlens",
+          "title": "HLens",
+          "icon": "media/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "hlens": [
+        {
+          "id": "hlens.list",
+          "name": "Features"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "hlens.list",
+        "contents": "No features yet.\n[Set up HLens](command:hlens.init)\nAfter setup, ask your agent to build a feature and it will appear in this list.\nTo catalog code that already exists, use [Generate feature list from existing code](command:hlens.generate)."
+      }
+    ],
+    "commands": [
+      {
+        "command": "hlens.generate",
+        "title": "HLens: Generate feature list from existing code",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "hlens.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "hlens.init",
+        "title": "HLens: Set up"
+      },
+      {
+        "command": "hlens.open",
+        "title": "Open feature"
+      },
+      {
+        "command": "hlens.record",
+        "title": "HLens: Record video",
+        "icon": "$(device-camera-video)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "hlens.generate",
+          "when": "view == hlens.list",
+          "group": "navigation"
+        },
+        {
+          "command": "hlens.refresh",
+          "when": "view == hlens.list",
+          "group": "navigation"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "hlens.open",
+          "when": "false"
+        },
+        {
+          "command": "hlens.record",
+          "when": "false"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "hlens.record",
+          "when": "view == hlens.list && viewItem == feature",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "HLens",
+      "properties": {
+        "hlens.autoSetup": {
+          "type": "boolean",
+          "default": false,
+          "description": "Set up HLens without asking when a project has not been set up yet (adds .features/RULES.md and a one-line reference in CLAUDE.md)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "package": "npm run build && vsce package --no-dependencies --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "^4.1.1",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "markdown-it": "^15.0.3",
+    "markmap-lib": "^0.18.13",
+    "markmap-view": "^0.18.13"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hov-i/hlens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hov-i/hlens/issues"
+  },
+  "homepage": "https://github.com/hov-i/hlens#readme"
+}

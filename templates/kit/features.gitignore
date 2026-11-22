@@ -1,0 +1,4 @@
+**/.out/
+**/.review.md
+.playwright.config.cjs
+.auth/
