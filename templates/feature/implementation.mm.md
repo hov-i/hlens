@@ -1,8 +1,3 @@
----
-markmap:
-  initialExpandLevel: 2
----
-
 # {Feature name}
 
 ## Screens

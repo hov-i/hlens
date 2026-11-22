@@ -80,7 +80,8 @@ function render(data: PanelData) {
     svg.style.display = '';
     implEmpty.style.display = 'none';
     lastRoot = data.mindmap.root;
-    const options = { ...deriveOptions(data.mindmap.options as never), maxInitialScale: 1 };
+    // Always show the whole map: ignore any initialExpandLevel in the file's frontmatter.
+    const options = { ...deriveOptions(data.mindmap.options as never), maxInitialScale: 1, initialExpandLevel: -1 };
     if (!markmap) markmap = Markmap.create(svg as unknown as SVGElement, options, lastRoot);
     else {
       markmap.setOptions(options);

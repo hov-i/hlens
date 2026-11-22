@@ -163,7 +163,7 @@ async function recordMobile(ctx: Ctx, platform: 'ios' | 'android'): Promise<numb
   const { root, config, scenario, outDir, id } = ctx;
   const device = await resolveDevice(platform, config.device, root);
   const video = path.join(outDir, 'scenario.mp4');
-  const recorder = platform === 'ios' ? await startIosRecording(device, video) : startAndroidRecording(device);
+  const start = () => (platform === 'ios' ? startIosRecording(device, video) : startAndroidRecording(device));
 
   // Flutter only treats files under integration_test/ as on-device integration tests.
   // Anywhere else it runs as a plain widget test without plugins and throws MissingPluginException.
@@ -171,19 +171,36 @@ async function recordMobile(ctx: Ctx, platform: 'ios' | 'android'): Promise<numb
   fs.mkdirSync(path.dirname(runnable), { recursive: true });
   fs.copyFileSync(scenario, runnable);
 
+  const cmd = (config.testCommand ?? DEFAULT_TEST_COMMAND)
+    .replace(/\{scenario\}/g, JSON.stringify(path.relative(root, runnable)))
+    .replace(/\{device\}/g, JSON.stringify(device))
+    .replace(/\{id\}/g, id);
+
+  // `flutter test` builds and installs the app first, which can take a minute. Recording from the
+  // beginning would capture that idle time, so wait until the test body starts ("+0: <test name>").
+  // Other commands cannot be observed this way, so they are recorded from the start.
+  const gated = /\bflutter\s+test\b/.test(cmd);
+  let recorder: Recorder | undefined;
+  let starting: Promise<void> | undefined;
+  const startOnce = () => (starting ??= Promise.resolve(start()).then((r: Recorder) => void (recorder = r)));
+  if (!gated) await startOnce();
+
   let code = 1;
+  let buffer = '';
   try {
-    await sleep(1500); // start the scenario only after recording has begun
-    const cmd = (config.testCommand ?? DEFAULT_TEST_COMMAND)
-      .replace(/\{scenario\}/g, JSON.stringify(path.relative(root, runnable)))
-      .replace(/\{device\}/g, JSON.stringify(device))
-      .replace(/\{id\}/g, id);
-    code = await run(cmd, root, ctx.token);
+    code = await run(cmd, root, ctx.token, (chunk) => {
+      if (!gated || starting) return;
+      buffer = (buffer + chunk).slice(-2000);
+      if (/\+\d+: [^l(]/.test(buffer)) void startOnce();
+    });
     await sleep(1500); // keep the final screen in the video
   } finally {
     fs.rmSync(runnable, { force: true });
-    await recorder.stop();
-    if (platform === 'android') await pullAndroidVideo(device, video);
+    await starting;
+    if (recorder) {
+      await recorder.stop();
+      if (platform === 'android') await pullAndroidVideo(device, video);
+    }
   }
   return code;
 }
@@ -246,11 +263,15 @@ function pipe(proc: ChildProcess) {
 }
 
 /** Runs a shell command and resolves with its exit code. Cancelling interrupts the process. */
-function run(command: string, cwd: string, token: vscode.CancellationToken): Promise<number> {
+function run(command: string, cwd: string, token: vscode.CancellationToken, onData?: (chunk: string) => void): Promise<number> {
   output.appendLine(`$ ${command}`);
   return new Promise((resolve, reject) => {
     const proc = spawn(command, { cwd, shell: true });
     pipe(proc);
+    if (onData) {
+      proc.stdout?.on('data', (d) => onData(String(d)));
+      proc.stderr?.on('data', (d) => onData(String(d)));
+    }
     const sub = token.onCancellationRequested(() => proc.kill('SIGINT'));
     proc.on('error', reject);
     proc.on('close', (code) => {
